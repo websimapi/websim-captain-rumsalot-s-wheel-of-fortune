@@ -5,267 +5,61 @@
 }
 
 body {
-  font-family: 'Pirata One', cursive;
-  color: #ECF0F1;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  perspective: 1000px;
   overflow: hidden;
-  background: linear-gradient(180deg, #1a4b77 0%, #2C3E50 100%);
+  font-family: 'Arial', sans-serif;
+  background: #2C3E50;
 }
 
-.ocean-container {
+canvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: -1;
-  transform-style: preserve-3d;
-  animation: oceanMovement 20s infinite linear;
 }
 
-.ocean {
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  bottom: -70%;
-  left: -50%;
-  background: linear-gradient(0deg, #0a3d62 0%, #3498db 100%);
-  transform: rotateX(75deg);
-  animation: wave 8s infinite linear;
-}
-
-.wave {
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.1) 0px,
-    rgba(255, 255, 255, 0.1) 20px,
-    transparent 20px,
-    transparent 40px
-  );
-  animation: waveMovement 10s infinite linear;
-}
-
-.sky {
+.controls {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 60%;
-  background: linear-gradient(180deg, #1a4b77 0%, #2980b9 100%);
-  z-index: -2;
-}
-
-.stars {
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(1px 1px at random(100) random(100), white 50%, transparent 50%);
-  opacity: 0.5;
-  z-index: -1;
-}
-
-.container {
-  max-width: 800px;
-  width: 100%;
-  text-align: center;
-  position: relative;
-  z-index: 1;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 20px;
-  border-radius: 15px;
-  backdrop-filter: blur(5px);
-}
-
-.header {
-  margin-bottom: 30px;
-  position: relative;
-}
-
-h1 {
-  font-size: 3em;
-  color: #F1C40F;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-  margin-bottom: 20px;
-}
-
-.wheel-container {
-  position: relative;
-  width: 100%;
-  height: 500px;
-  max-width: 500px;
-  margin: 0 auto 30px;
-}
-
-#wheel-canvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  overflow: hidden;
-}
-
-.wheel, .wheel-frame, .wheel-sections {
-  display: none;
-}
-
-.pointer {
-  position: absolute;
-  top: -40px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  width: 40px;
-  height: 80px;
+  z-index: 100;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
 }
 
-.spin-button {
-  font-family: 'Pirata One', cursive;
-  font-size: 1.5em;
-  padding: 15px 30px;
+.direction-controls {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+button {
+  font-family: 'Arial', sans-serif;
+  padding: 10px 20px;
   background: #E74C3C;
   color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
   transition: transform 0.2s, background-color 0.2s;
-  margin-bottom: 30px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
-.spin-button:hover {
+button:hover {
   background: #C0392B;
   transform: scale(1.05);
 }
 
-.spin-button:active {
-  transform: scale(0.95);
+.info {
+  text-align: center;
+  margin-top: 10px;
 }
 
-.controls {
-  background: rgba(0,0,0,0.2);
-  padding: 20px;
-  border-radius: 10px;
-  margin-top: 20px;
-}
-
-.input-group {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  justify-content: center;
-}
-
-input {
-  padding: 10px;
-  font-size: 1em;
-  border: none;
-  border-radius: 5px;
-  width: 200px;
-}
-
-button#addCategory {
-  padding: 10px 20px;
-  background: #2ECC71;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-button#addCategory:hover {
-  background: #27AE60;
-}
-
-.categories-list {
-  text-align: left;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.categories-list h3 {
-  margin-bottom: 10px;
+#compass {
+  font-weight: bold;
   color: #F1C40F;
-}
-
-#categoriesList {
-  list-style: none;
-}
-
-#categoriesList li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.delete-btn {
-  background: none;
-  border: none;
-  color: #E74C3C;
-  cursor: pointer;
-  font-size: 1.2em;
-  padding: 0 5px;
-}
-
-.delete-btn:hover {
-  color: #C0392B;
-}
-
-.eyepatch {
-  position: absolute;
-  width: 100px;
-  top: -20px;
-  right: 20%;
-  transform: rotate(-10deg);
-}
-
-@keyframes sway {
-  0%, 100% { transform: rotate(-10deg); }
-  50% { transform: rotate(-5deg); }
-}
-
-.eyepatch {
-  animation: sway 3s ease-in-out infinite;
-}
-
-@keyframes oceanMovement {
-  0% {
-    transform: translateZ(0) rotateX(0);
-  }
-  100% {
-    transform: translateZ(100px) rotateX(5deg);
-  }
-}
-
-@keyframes wave {
-  0% {
-    transform: rotateX(75deg) translateY(0);
-  }
-  100% {
-    transform: rotateX(75deg) translateY(-50%);
-  }
-}
-
-@keyframes waveMovement {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(-50%, -50%);
-  }
-}
-
-/* Add wooden texture to the wheel sections */
-.wheel-sections path {
-  filter: url(#wood-texture);
+  margin-top: 10px;
 }
