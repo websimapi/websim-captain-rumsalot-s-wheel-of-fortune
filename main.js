@@ -62,55 +62,127 @@ class ShipWheel {
     // Create ship hull
     const hullGeometry = new THREE.Group();
     
-    // Main hull body
+    // Main hull body - made more detailed with better curves
     const baseHull = new THREE.Mesh(
-      new THREE.CapsuleGeometry(2, 8, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5c3a21 })
+      new THREE.CapsuleGeometry(2.2, 9, 8, 16),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x5c3a21,
+        roughness: 0.8,
+        metalness: 0.2
+      })
     );
     baseHull.rotation.z = Math.PI / 2;
     baseHull.scale.set(1, 1, 0.7);
     hullGeometry.add(baseHull);
 
-    // Deck
-    const deck = new THREE.Mesh(
-      new THREE.BoxGeometry(8, 0.2, 3),
-      new THREE.MeshStandardMaterial({ color: 0x8b4513 })
-    );
-    deck.position.y = 1;
-    hullGeometry.add(deck);
+    // Enhanced deck with planks
+    const deckGroup = new THREE.Group();
+    const plankCount = 20;
+    const plankWidth = 8 / plankCount;
+    
+    for (let i = 0; i < plankCount; i++) {
+      const plank = new THREE.Mesh(
+        new THREE.BoxGeometry(plankWidth * 0.95, 0.1, 3),
+        new THREE.MeshStandardMaterial({ 
+          color: 0x8b4513,
+          roughness: 0.9,
+          metalness: 0.1
+        })
+      );
+      plank.position.x = (i - plankCount/2) * plankWidth + plankWidth/2;
+      plank.position.y = 1;
+      deckGroup.add(plank);
+    }
+    hullGeometry.add(deckGroup);
 
-    // Cabin
-    const cabin = new THREE.Mesh(
+    // Enhanced cabin with windows
+    const cabin = new THREE.Group();
+    
+    // Main cabin structure
+    const cabinBody = new THREE.Mesh(
       new THREE.BoxGeometry(3, 2, 2),
-      new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+      new THREE.MeshStandardMaterial({ 
+        color: 0x8b4513,
+        roughness: 0.7,
+        metalness: 0.2
+      })
     );
+    cabin.add(cabinBody);
+
+    // Windows
+    const windowMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.6,
+      shininess: 90
+    });
+
+    for (let i = 0; i < 2; i++) {
+      const window = new THREE.Mesh(
+        new THREE.CircleGeometry(0.2, 16),
+        windowMaterial
+      );
+      window.position.set(0.5, 0, (-0.5 + i) * 1);
+      window.rotation.y = Math.PI / 2;
+      cabin.add(window);
+    }
+
     cabin.position.set(-1, 2, 0);
     hullGeometry.add(cabin);
 
-    // Mast
+    // Enhanced mast with more detail
+    const mastGroup = new THREE.Group();
+    
+    // Main mast
     const mast = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.1, 8),
+      new THREE.CylinderGeometry(0.12, 0.15, 8),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x8b4513,
+        roughness: 0.8,
+        metalness: 0.2
+      })
+    );
+    mastGroup.add(mast);
+
+    // Crow's nest
+    const crowsNest = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.4, 0.3, 8),
       new THREE.MeshStandardMaterial({ color: 0x8b4513 })
     );
-    mast.position.set(1, 5, 0);
-    hullGeometry.add(mast);
+    crowsNest.position.y = 3;
+    mastGroup.add(crowsNest);
 
-    // Sail
-    const sailGeometry = new THREE.PlaneGeometry(3, 6);
+    mastGroup.position.set(1, 5, 0);
+    hullGeometry.add(mastGroup);
+
+    // Enhanced sail with better material and rigging
+    const sailGeometry = new THREE.PlaneGeometry(3, 6, 10, 10);
     const sailMaterial = new THREE.MeshStandardMaterial({
       color: 0xf0f0f0,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.9,
+      roughness: 0.5
     });
     const sail = new THREE.Mesh(sailGeometry, sailMaterial);
     sail.position.set(2, 4, 0);
     sail.rotation.y = Math.PI / 2;
+    
+    // Add slight wave deformation to sail vertices
+    const sailPositions = sail.geometry.attributes.position.array;
+    for (let i = 0; i < sailPositions.length; i += 3) {
+      sailPositions[i + 2] += Math.sin(sailPositions[i + 1] * 0.5) * 0.1;
+    }
+    sail.geometry.attributes.position.needsUpdate = true;
+    
     this.sail = sail;
     hullGeometry.add(sail);
 
-    // Add ropes
-    this.createRopes(hullGeometry, mast);
+    // Enhanced ropes system
+    this.createRopes(hullGeometry, mastGroup);
+
+    // Add railings
+    this.createRailings(hullGeometry);
 
     // Position the entire boat
     hullGeometry.position.y = 0;
@@ -134,34 +206,93 @@ class ShipWheel {
     }
   }
 
+  createRailings(hullGeometry) {
+    const railingMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x8b4513,
+      roughness: 0.7
+    });
+
+    const railingGroup = new THREE.Group();
+    
+    // Create posts
+    for (let i = -4; i <= 4; i += 0.8) {
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6),
+        railingMaterial
+      );
+      post.position.set(i, 1.4, 1.4);
+      railingGroup.add(post);
+      
+      const postMirror = post.clone();
+      postMirror.position.z = -1.4;
+      railingGroup.add(postMirror);
+    }
+
+    // Add horizontal railings
+    const horizontalRailing = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 8.2, 6),
+      railingMaterial
+    );
+    horizontalRailing.rotation.z = Math.PI / 2;
+    horizontalRailing.position.y = 1.7;
+    horizontalRailing.position.z = 1.4;
+    railingGroup.add(horizontalRailing);
+
+    const backRailing = horizontalRailing.clone();
+    backRailing.position.z = -1.4;
+    railingGroup.add(backRailing);
+
+    hullGeometry.add(railingGroup);
+  }
+
   createWheel() {
-    // Create wheel geometry
-    const wheelGeometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
+    const wheelGroup = new THREE.Group();
+    
+    // Main wheel rim
+    const rimGeometry = new THREE.TorusGeometry(0.8, 0.08, 16, 32);
     const wheelMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x5c3a21,
       roughness: 0.7,
       metalness: 0.3
     });
-    this.wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-    this.wheel.rotation.x = Math.PI / 2;
-    
-    // Add spokes
+    const rim = new THREE.Mesh(rimGeometry, wheelMaterial);
+    wheelGroup.add(rim);
+
+    // Center hub
+    const hub = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.2, 0.2, 16),
+      wheelMaterial
+    );
+    wheelGroup.add(hub);
+
+    // Spokes
     const spokesCount = 8;
     for (let i = 0; i < spokesCount; i++) {
       const spoke = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8),
+        new THREE.BoxGeometry(0.08, 0.08, 0.7),
         wheelMaterial
       );
-      spoke.position.y = 0;
-      spoke.rotation.z = (i / spokesCount) * Math.PI * 2;
-      spoke.position.x = Math.cos(spoke.rotation.z) * 1;
-      spoke.position.z = Math.sin(spoke.rotation.z) * 1;
-      this.wheel.add(spoke);
+      const angle = (i / spokesCount) * Math.PI * 2;
+      spoke.position.x = Math.cos(angle) * 0.4;
+      spoke.position.y = Math.sin(angle) * 0.4;
+      spoke.rotation.x = angle;
+      wheelGroup.add(spoke);
+
+      // Add handle grips
+      const grip = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.06, 0.15, 4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x3d2412 })
+      );
+      grip.position.x = Math.cos(angle) * 0.8;
+      grip.position.y = Math.sin(angle) * 0.8;
+      grip.rotation.x = angle;
+      wheelGroup.add(grip);
     }
 
-    // Position wheel relative to boat
-    this.wheel.position.set(-1, 4, 0); // Positioned on the cabin
-    this.boatGroup.add(this.wheel);
+    wheelGroup.rotation.z = Math.PI / 2;
+    wheelGroup.position.set(-1, 4, 0);
+    this.wheel = wheelGroup;
+    this.boatGroup.add(wheelGroup);
   }
 
   initializeScene() {
