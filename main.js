@@ -32,12 +32,130 @@ class ShipWheel {
     this.camera.position.set(0, 5, 10);
     this.controls.update();
 
-    // Initialize
+    // Add physics properties
+    this.time = 0;
+    this.shipRotation = {
+      x: 0,
+      y: 0,
+      z: 0
+    };
+    
+    this.boatGroup = new THREE.Group(); // Group to hold boat and wheel
+    this.scene.add(this.boatGroup);
+
+    // Initialize with additional components
     this.initializeScene();
-    this.initializeEvents();
+    this.createBoat();
     this.createWheel();
+    this.initializeEvents();
     this.updateCategoriesList();
     this.animate();
+  }
+
+  createBoat() {
+    // Create ship hull
+    const hullGeometry = new THREE.Group();
+    
+    // Main hull body
+    const baseHull = new THREE.Mesh(
+      new THREE.CapsuleGeometry(2, 8, 4, 8),
+      new THREE.MeshStandardMaterial({ color: 0x5c3a21 })
+    );
+    baseHull.rotation.z = Math.PI / 2;
+    baseHull.scale.set(1, 1, 0.7);
+    hullGeometry.add(baseHull);
+
+    // Deck
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(8, 0.2, 3),
+      new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+    );
+    deck.position.y = 1;
+    hullGeometry.add(deck);
+
+    // Cabin
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 2, 2),
+      new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+    );
+    cabin.position.set(-1, 2, 0);
+    hullGeometry.add(cabin);
+
+    // Mast
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 8),
+      new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+    );
+    mast.position.set(1, 5, 0);
+    hullGeometry.add(mast);
+
+    // Sail
+    const sailGeometry = new THREE.PlaneGeometry(3, 6);
+    const sailMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf0f0f0,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.9
+    });
+    const sail = new THREE.Mesh(sailGeometry, sailMaterial);
+    sail.position.set(2, 4, 0);
+    sail.rotation.y = Math.PI / 2;
+    this.sail = sail;
+    hullGeometry.add(sail);
+
+    // Add ropes
+    this.createRopes(hullGeometry, mast);
+
+    // Position the entire boat
+    hullGeometry.position.y = 0;
+    this.boatGroup.add(hullGeometry);
+    this.hull = hullGeometry;
+  }
+
+  createRopes(hullGeometry, mast) {
+    const ropeGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1);
+    const ropeMaterial = new THREE.MeshStandardMaterial({ color: 0x463020 });
+    
+    // Create multiple ropes
+    for (let i = 0; i < 3; i++) {
+      const rope = new THREE.Mesh(ropeGeometry, ropeMaterial);
+      rope.position.set(
+        1 + Math.cos(i * Math.PI / 2) * 1.5,
+        4,
+        Math.sin(i * Math.PI / 2) * 1.5
+      );
+      hullGeometry.add(rope);
+    }
+  }
+
+  createWheel() {
+    // Create wheel geometry
+    const wheelGeometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
+    const wheelMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x5c3a21,
+      roughness: 0.7,
+      metalness: 0.3
+    });
+    this.wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    this.wheel.rotation.x = Math.PI / 2;
+    
+    // Add spokes
+    const spokesCount = 8;
+    for (let i = 0; i < spokesCount; i++) {
+      const spoke = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8),
+        wheelMaterial
+      );
+      spoke.position.y = 0;
+      spoke.rotation.z = (i / spokesCount) * Math.PI * 2;
+      spoke.position.x = Math.cos(spoke.rotation.z) * 1;
+      spoke.position.z = Math.sin(spoke.rotation.z) * 1;
+      this.wheel.add(spoke);
+    }
+
+    // Position wheel relative to boat
+    this.wheel.position.set(-1, 4, 0); // Positioned on the cabin
+    this.boatGroup.add(this.wheel);
   }
 
   initializeScene() {
@@ -80,35 +198,6 @@ class ShipWheel {
     this.water.material.uniforms['sunDirection'].value.copy(sun).normalize();
 
     this.scene.environment = pmremGenerator.fromScene(this.sky).texture;
-  }
-
-  createWheel() {
-    // Create wheel geometry
-    const wheelGeometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
-    const wheelMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x5c3a21,
-      roughness: 0.7,
-      metalness: 0.3
-    });
-    this.wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-    this.wheel.rotation.x = Math.PI / 2;
-    this.wheel.position.y = 3;
-    
-    // Add spokes
-    const spokesCount = 8;
-    for (let i = 0; i < spokesCount; i++) {
-      const spoke = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8),
-        wheelMaterial
-      );
-      spoke.position.y = 0;
-      spoke.rotation.z = (i / spokesCount) * Math.PI * 2;
-      spoke.position.x = Math.cos(spoke.rotation.z) * 1;
-      spoke.position.z = Math.sin(spoke.rotation.z) * 1;
-      this.wheel.add(spoke);
-    }
-
-    this.scene.add(this.wheel);
   }
 
   initializeEvents() {
@@ -192,9 +281,40 @@ class ShipWheel {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
+  updateBoatPhysics() {
+    this.time += 0.01;
+    
+    // Simulate wave motion
+    const waveHeight = Math.sin(this.time) * 0.2;
+    const wavePitch = Math.sin(this.time * 0.5) * 0.05;
+    const waveRoll = Math.cos(this.time * 0.7) * 0.05;
+
+    // Apply physics to boat group
+    this.boatGroup.position.y = waveHeight + 2; // Base height + wave motion
+    this.boatGroup.rotation.x = wavePitch;
+    this.boatGroup.rotation.z = waveRoll;
+
+    // Animate sail
+    if (this.sail) {
+      this.sail.position.z = Math.sin(this.time) * 0.1;
+    }
+
+    // Update water movement
+    if (this.water) {
+      this.water.material.uniforms['time'].value += 1.0 / 60.0;
+    }
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
-    this.water.material.uniforms['time'].value += 1.0 / 60.0;
+    
+    this.updateBoatPhysics();
+    
+    // Update controls
+    if (this.controls) {
+      this.controls.update();
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 }
