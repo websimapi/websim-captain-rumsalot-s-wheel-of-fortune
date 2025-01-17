@@ -8,6 +8,10 @@ class ShipWheel {
     this.categories = ['Rum', 'More Rum', 'Even More Rum', 'Lots of Rum'];
     this.isSpinning = false;
     this.currentRotation = 0;
+    this.steeringAngle = 0;
+    this.boatTargetRotation = 0;
+    this.wheelInteractionEnabled = true;
+    this.tooltipTimeout = null;
     
     // UI Elements
     this.spinButton = document.getElementById('spinButton');
@@ -47,6 +51,8 @@ class ShipWheel {
     this.initializeScene();
     this.createBoat();
     this.createWheel();
+    this.setupTooltip();
+    this.showInitialTooltip();
     this.initializeEvents();
     this.updateCategoriesList();
     this.animate();
@@ -201,42 +207,85 @@ class ShipWheel {
   }
 
   initializeEvents() {
-    this.spinButton.addEventListener('click', () => this.spin());
     this.addCategoryButton.addEventListener('click', () => this.addCategory());
     this.categoryInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.addCategory();
     });
     window.addEventListener('resize', () => this.onWindowResize());
-  }
+    
+    // Add wheel interaction
+    const wheelMesh = this.wheel;
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isDragging = false;
+    let previousMouseX = 0;
 
-  spin() {
-    if (this.isSpinning) return;
-    this.isSpinning = true;
-    this.spinButton.disabled = true;
-    
-    const spins = 5 + Math.random() * 5;
-    const targetRotation = this.currentRotation + (spins * Math.PI * 2);
-    
-    gsap.to(this.wheel.rotation, {
-      y: targetRotation,
-      duration: 5,
-      ease: "power2.out",
-      onComplete: () => {
-        this.isSpinning = false;
-        this.spinButton.disabled = false;
-        this.currentRotation = targetRotation;
-        this.announceWinner();
+    document.addEventListener('mousedown', (event) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, this.camera);
+      const intersects = raycaster.intersectObject(wheelMesh, true);
+
+      if (intersects.length > 0 && this.wheelInteractionEnabled) {
+        isDragging = true;
+        previousMouseX = event.clientX;
+        document.body.style.cursor = 'grabbing';
       }
+    });
+
+    document.addEventListener('mousemove', (event) => {
+      if (isDragging) {
+        const deltaX = event.clientX - previousMouseX;
+        const rotationSpeed = 0.01;
+        this.wheel.rotation.y += deltaX * rotationSpeed;
+        
+        // Update boat steering
+        this.steeringAngle += deltaX * rotationSpeed;
+        this.boatTargetRotation = this.steeringAngle * 0.5;
+        
+        previousMouseX = event.clientX;
+        
+        // Trigger winner check if wheel spins enough
+        if (Math.abs(deltaX) > 10) {
+          this.checkForWinner();
+        }
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      document.body.style.cursor = 'default';
     });
   }
 
-  announceWinner() {
+  setupTooltip() {
+    const tooltip = document.createElement('div');
+    tooltip.id = 'tooltip';
+    tooltip.textContent = 'Click and drag the ship wheel to steer!';
+    document.body.appendChild(tooltip);
+    this.tooltip = tooltip;
+  }
+
+  showInitialTooltip() {
+    this.tooltip.style.display = 'block';
+    setTimeout(() => {
+      this.tooltip.style.display = 'none';
+    }, 3000);
+  }
+
+  checkForWinner() {
     const rotation = (this.wheel.rotation.y % (Math.PI * 2)) / (Math.PI * 2);
     const sectionAngle = 1 / this.categories.length;
     const winningIndex = Math.floor(rotation / sectionAngle);
     const winner = this.categories[winningIndex];
     
-    alert(`Yarr! The wheel has chosen: ${winner}! 🏴‍☠️`);
+    this.tooltip.textContent = `Current selection: ${winner}`;
+    this.tooltip.style.display = 'block';
+    clearTimeout(this.tooltipTimeout);
+    this.tooltipTimeout = setTimeout(() => {
+      this.tooltip.style.display = 'none';
+    }, 2000);
   }
 
   addCategory() {
@@ -290,9 +339,12 @@ class ShipWheel {
     const waveRoll = Math.cos(this.time * 0.7) * 0.05;
 
     // Apply physics to boat group
-    this.boatGroup.position.y = waveHeight + 2; // Base height + wave motion
+    this.boatGroup.position.y = waveHeight + 2;
     this.boatGroup.rotation.x = wavePitch;
     this.boatGroup.rotation.z = waveRoll;
+
+    // Smooth boat steering
+    this.boatGroup.rotation.y += (this.boatTargetRotation - this.boatGroup.rotation.y) * 0.02;
 
     // Animate sail
     if (this.sail) {
