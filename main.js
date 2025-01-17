@@ -265,29 +265,46 @@ class ShipWheel {
     const angleStep = (Math.PI * 2) / categories.length;
 
     categories.forEach((category, index) => {
-      // Create a larger marker plane for each category
-      const markerGeometry = new THREE.PlaneGeometry(0.6, 0.25); 
-      const markerMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0xffd700,
+      const markerGroup = new THREE.Group();
+
+      // Create a larger background panel for each category
+      const panelGeometry = new THREE.PlaneGeometry(0.8, 0.4);
+      const panelMaterial = new THREE.MeshStandardMaterial({
+        color: index % 2 === 0 ? 0xffd700 : 0xe6b800,
         side: THREE.DoubleSide
       });
-      const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+      const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+      markerGroup.add(panel);
+
+      // Create text using merged geometry for better performance
+      const textGeometry = new THREE.TextGeometry(category, {
+        size: 0.1,
+        height: 0.02,
+        curveSegments: 4,
+        bevelEnabled: false
+      });
+      const textMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
       
-      // Position markers further out from the wheel
+      // Center the text on the panel
+      textGeometry.computeBoundingBox();
+      const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+      textMesh.position.x = -textWidth / 2;
+      textMesh.position.y = -0.05;
+      markerGroup.add(textMesh);
+
+      // Position the entire marker group
       const angle = index * angleStep;
-      const radius = 1.1; 
-      marker.position.x = Math.cos(angle) * radius;
-      marker.position.y = Math.sin(angle) * radius;
-      marker.position.z = 0.1;
+      const radius = 1.2;
+      markerGroup.position.x = Math.cos(angle) * radius;
+      markerGroup.position.y = Math.sin(angle) * radius;
+      markerGroup.rotation.z = angle + Math.PI / 2;
       
-      // Rotate marker to face outward and maintain readability
-      marker.rotation.z = angle + Math.PI / 2;
-      
-      wheelGroup.add(marker);
+      wheelGroup.add(markerGroup);
 
       // Add section separators
       const separator = new THREE.Mesh(
-        new THREE.BoxGeometry(1.0, 0.03, 0.02), 
+        new THREE.BoxGeometry(1.2, 0.05, 0.02),
         new THREE.MeshStandardMaterial({ color: 0x3d2412 })
       );
       separator.position.x = 0;
@@ -353,13 +370,10 @@ class ShipWheel {
     centerCap.position.z = 0.1;
     wheelGroup.add(centerCap);
 
-    wheelGroup.rotation.z = Math.PI / 2;
+    wheelGroup.rotation.x = Math.PI / 2; 
     wheelGroup.position.set(-1, 4, 0);
     this.wheel = wheelGroup;
     this.boatGroup.add(wheelGroup);
-
-    // Lock rotation to correct axis
-    wheelGroup.userData.rotationAxis = new THREE.Vector3(0, 1, 0);
   }
 
   initializeScene() {
@@ -411,56 +425,51 @@ class ShipWheel {
     });
     window.addEventListener('resize', () => this.onWindowResize());
     
-    // Modified wheel interaction
-    const wheelMesh = this.wheel;
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
     let isDragging = false;
-    let previousMouseX = 0;
-    let spinVelocity = 0;
-    let isSpinning = false;
+    let startX = 0;
+    let startAngle = 0;
+
+    const mouse = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
 
     document.addEventListener('mousedown', (event) => {
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
       raycaster.setFromCamera(mouse, this.camera);
-      const intersects = raycaster.intersectObject(wheelMesh, true);
+      const intersects = raycaster.intersectObject(this.wheel, true);
 
-      if (intersects.length > 0 && this.wheelInteractionEnabled && !isSpinning) {
+      if (intersects.length > 0 && !this.isSpinning) {
         isDragging = true;
-        previousMouseX = event.clientX;
+        startX = event.clientX;
+        startAngle = this.wheel.rotation.x;
         document.body.style.cursor = 'grabbing';
       }
     });
 
     document.addEventListener('mousemove', (event) => {
-      if (isDragging && !isSpinning) {
-        const deltaX = event.clientX - previousMouseX;
+      if (isDragging && !this.isSpinning) {
+        const deltaX = event.clientX - startX;
         const rotationSpeed = 0.01;
         
-        spinVelocity = deltaX * rotationSpeed;
-        this.wheel.rotation.y += spinVelocity;
-        
-        // Update boat steering
-        this.steeringAngle += spinVelocity;
+        this.wheel.rotation.x = startAngle + (deltaX * rotationSpeed);
+        this.steeringAngle = this.wheel.rotation.x;
         this.boatTargetRotation = this.steeringAngle * 0.5;
         
-        previousMouseX = event.clientX;
-        
-        // If velocity is high enough, start a spin
-        if (Math.abs(spinVelocity) > 0.1) {
-          isSpinning = true;
+        // If movement is fast enough, trigger a spin
+        if (Math.abs(deltaX * rotationSpeed) > 0.1) {
+          this.spinWheel(deltaX * rotationSpeed * 0.1);
           isDragging = false;
-          this.spinWheel(spinVelocity);
         }
       }
     });
 
     document.addEventListener('mouseup', () => {
-      if (isDragging && !isSpinning && Math.abs(spinVelocity) > 0.05) {
-        isSpinning = true;
-        this.spinWheel(spinVelocity);
+      if (isDragging) {
+        const finalDelta = (event.clientX - startX) * 0.01;
+        if (Math.abs(finalDelta) > 0.05) {
+          this.spinWheel(finalDelta);
+        }
       }
       isDragging = false;
       document.body.style.cursor = 'default';
@@ -468,21 +477,22 @@ class ShipWheel {
   }
 
   spinWheel(initialVelocity) {
+    this.isSpinning = true;
     let velocity = initialVelocity;
     const friction = 0.98;
     const minVelocity = 0.001;
 
     const animate = () => {
       if (Math.abs(velocity) > minVelocity) {
-        this.wheel.rotation.y += velocity;
-        this.steeringAngle += velocity;
+        this.wheel.rotation.x += velocity;
+        this.steeringAngle = this.wheel.rotation.x;
         this.boatTargetRotation = this.steeringAngle * 0.5;
         velocity *= friction;
         
         this.checkForWinner();
         requestAnimationFrame(animate);
       } else {
-        isSpinning = false;
+        this.isSpinning = false;
       }
     };
 
@@ -505,7 +515,7 @@ class ShipWheel {
   }
 
   checkForWinner() {
-    const rotation = (this.wheel.rotation.y % (Math.PI * 2));
+    const rotation = (this.wheel.rotation.x % (Math.PI * 2));
     const normalizedRotation = rotation < 0 ? rotation + Math.PI * 2 : rotation;
     const sectionAngle = (Math.PI * 2) / this.categories.length;
     const winningIndex = Math.floor(normalizedRotation / sectionAngle);
