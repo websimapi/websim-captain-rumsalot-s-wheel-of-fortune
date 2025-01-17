@@ -99,30 +99,20 @@ h1 {
 .wheel-container {
   position: relative;
   width: 100%;
+  height: 500px;
   max-width: 500px;
   margin: 0 auto 30px;
-  transform-style: preserve-3d;
-  transform: rotateX(10deg);
 }
 
-.wheel {
+#wheel-canvas {
   width: 100%;
-  height: auto;
-  transform-origin: center;
-  transition: transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
-.wheel-frame {
-  position: absolute;
-  top: -10%;
-  left: -10%;
-  width: 120%;
-  height: 120%;
-  border: 20px solid #593d1b;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 2;
+.wheel, .wheel-frame, .wheel-sections {
+  display: none;
 }
 
 .pointer {

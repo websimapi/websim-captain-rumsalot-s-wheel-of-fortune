@@ -1,108 +1,128 @@
+import * as THREE from 'three';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
 class WheelOfFortune {
   constructor() {
     this.categories = ['Rum', 'More Rum', 'Even More Rum', 'Lots of Rum'];
     this.isSpinning = false;
-    this.wheel = document.querySelector('.wheel');
-    this.wheelSections = document.querySelector('.wheel-sections');
     this.spinButton = document.getElementById('spinButton');
     this.categoryInput = document.getElementById('categoryInput');
     this.addCategoryButton = document.getElementById('addCategory');
     this.categoriesList = document.getElementById('categoriesList');
-
+    
+    this.initThreeJS();
     this.initializeEvents();
-    this.drawWheel();
+    this.createWheel();
     this.updateCategoriesList();
-    this.setupWheelAppearance();
+    this.animate();
   }
 
-  initializeEvents() {
-    this.spinButton.addEventListener('click', () => this.spin());
-    this.addCategoryButton.addEventListener('click', () => this.addCategory());
-    this.categoryInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addCategory();
+  initThreeJS() {
+    const container = document.getElementById('wheel-canvas');
+    
+    // Scene setup
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    this.camera.position.z = 5;
+    
+    // Renderer setup
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(this.renderer.domElement);
+    
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    this.scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 5, 5);
+    this.scene.add(directionalLight);
+
+    // Group for the wheel
+    this.wheelGroup = new THREE.Group();
+    this.scene.add(this.wheelGroup);
+  }
+
+  createWheel() {
+    // Create the main wheel structure
+    const wheelGeometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
+    const woodTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/wood.jpg');
+    const wheelMaterial = new THREE.MeshPhongMaterial({ 
+      map: woodTexture,
+      color: 0x593d1b
+    });
+    this.wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    this.wheel.rotation.x = Math.PI / 2;
+    this.wheelGroup.add(this.wheel);
+
+    // Add spokes
+    const spokeGeometry = new THREE.BoxGeometry(0.1, 4, 0.1);
+    const spokeMaterial = new THREE.MeshPhongMaterial({ color: 0x593d1b });
+    
+    for (let i = 0; i < 8; i++) {
+      const spoke = new THREE.Mesh(spokeGeometry, spokeMaterial);
+      spoke.rotation.z = (i / 8) * Math.PI * 2;
+      this.wheelGroup.add(spoke);
+    }
+
+    // Add center hub
+    const hubGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.3, 16);
+    const hub = new THREE.Mesh(hubGeometry, spokeMaterial);
+    hub.rotation.x = Math.PI / 2;
+    this.wheelGroup.add(hub);
+
+    // Add section dividers
+    const sectionAngle = (Math.PI * 2) / this.categories.length;
+    for (let i = 0; i < this.categories.length; i++) {
+      const dividerGeometry = new THREE.BoxGeometry(0.05, 2, 0.05);
+      const divider = new THREE.Mesh(dividerGeometry, spokeMaterial);
+      divider.rotation.z = i * sectionAngle;
+      this.wheelGroup.add(divider);
+    }
+
+    // Add text labels
+    const fontLoader = new FontLoader();
+    fontLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+      for (let i = 0; i < this.categories.length; i++) {
+        const geometry = new TextGeometry(this.categories[i], {
+          font: font,
+          size: 0.2,
+          height: 0.1,
+          curveSegments: 12,
+        });
+        const material = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const text = new THREE.Mesh(geometry, material);
+        text.position.x = 1.5 * Math.cos(i * sectionAngle);
+        text.position.y = 1.5 * Math.sin(i * sectionAngle);
+        text.rotation.z = i * sectionAngle;
+        text.rotation.x = Math.PI / 2;
+        this.wheelGroup.add(text);
+      }
     });
   }
 
-  drawWheel() {
-    this.wheelSections.innerHTML = '';
-    const sectionAngle = 360 / this.categories.length;
-    const colors = ['#E74C3C', '#3498DB', '#2ECC71', '#F1C40F', '#9B59B6', '#1ABC9C'];
-
-    this.categories.forEach((category, index) => {
-      const startAngle = index * sectionAngle;
-      const endAngle = (index + 1) * sectionAngle;
-      const section = this.createWheelSection(
-        250, 250, 240, startAngle, endAngle,
-        colors[index % colors.length], category
-      );
-      this.wheelSections.appendChild(section);
-    });
-  }
-
-  createWheelSection(cx, cy, r, startAngle, endAngle, fill, text) {
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  animate() {
+    requestAnimationFrame(() => this.animate());
     
-    // Create section path with wood-like appearance
-    const startRad = (startAngle - 90) * Math.PI / 180;
-    const endRad = (endAngle - 90) * Math.PI / 180;
+    if (!this.isSpinning) {
+      this.wheelGroup.rotation.z += 0.001; // Slow continuous rotation when not spinning
+    }
     
-    const x1 = cx + r * Math.cos(startRad);
-    const y1 = cy + r * Math.sin(startRad);
-    const x2 = cx + r * Math.cos(endRad);
-    const y2 = cy + r * Math.sin(endRad);
-    
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M${cx},${cy} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} Z`);
-    path.setAttribute('fill', fill);
-    path.setAttribute('stroke', '#593d1b');
-    path.setAttribute('stroke-width', '3');
-    
-    // Add wood grain effect
-    path.setAttribute('filter', 'url(#wood-texture)');
-    
-    // Add text with improved styling
-    const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    const middleAngle = (startAngle + endAngle) / 2;
-    const textRadius = r * 0.7;
-    const textX = cx + textRadius * Math.cos((middleAngle - 90) * Math.PI / 180);
-    const textY = cy + textRadius * Math.sin((middleAngle - 90) * Math.PI / 180);
-    
-    textElement.setAttribute('x', textX);
-    textElement.setAttribute('y', textY);
-    textElement.setAttribute('text-anchor', 'middle');
-    textElement.setAttribute('fill', 'white');
-    textElement.setAttribute('transform', `rotate(${middleAngle},${textX},${textY})`);
-    textElement.style.fontSize = '16px';
-    textElement.style.fontWeight = 'bold';
-    textElement.style.textShadow = '2px 2px 2px rgba(0,0,0,0.5)';
-    textElement.textContent = text;
-    
-    group.appendChild(path);
-    group.appendChild(textElement);
-    return group;
-  }
-
-  setupWheelAppearance() {
-    this.wheel.style.transform = "rotateX(10deg)";
-    gsap.to(this.wheel, {
-      rotationY: 360,
-      duration: 30,
-      repeat: -1,
-      ease: "none"
-    });
+    this.renderer.render(this.scene, this.camera);
   }
 
   spin() {
     if (this.isSpinning) return;
     this.isSpinning = true;
     this.spinButton.disabled = true;
-    
-    const currentRotation = this.getRotation(this.wheel);
+
+    const currentRotation = this.wheelGroup.rotation.z;
     const spins = 5 + Math.random() * 5;
-    const targetRotation = currentRotation + (spins * 360);
-    
-    gsap.to(this.wheel, {
-      rotation: targetRotation,
+    const targetRotation = currentRotation + (spins * Math.PI * 2);
+
+    gsap.to(this.wheelGroup.rotation, {
+      z: targetRotation,
       duration: 5,
       ease: "power2.out",
       onComplete: () => {
@@ -113,19 +133,21 @@ class WheelOfFortune {
     });
   }
 
-  getRotation(element) {
-    const style = window.getComputedStyle(element);
-    const matrix = new WebKitCSSMatrix(style.transform);
-    return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
-  }
-
   announceWinner() {
-    const rotation = this.getRotation(this.wheel) % 360;
-    const sectionAngle = 360 / this.categories.length;
-    const winningIndex = Math.floor(((360 - rotation) % 360) / sectionAngle);
+    const rotation = this.wheelGroup.rotation.z % (Math.PI * 2);
+    const sectionAngle = (Math.PI * 2) / this.categories.length;
+    const winningIndex = Math.floor((rotation / sectionAngle) % this.categories.length);
     const winner = this.categories[winningIndex];
     
-    alert(`Yarr! The wheel has chosen: ${winner}! `);
+    alert(`Yarr! The wheel has chosen: ${winner}!`);
+  }
+
+  initializeEvents() {
+    this.spinButton.addEventListener('click', () => this.spin());
+    this.addCategoryButton.addEventListener('click', () => this.addCategory());
+    this.categoryInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.addCategory();
+    });
   }
 
   addCategory() {
@@ -133,7 +155,8 @@ class WheelOfFortune {
     if (category && this.categories.length < 12) {
       this.categories.push(category);
       this.categoryInput.value = '';
-      this.drawWheel();
+      this.wheelGroup.clear();
+      this.createWheel();
       this.updateCategoriesList();
     } else if (this.categories.length >= 12) {
       alert("Yarr! The wheel can't hold more than 12 categories, matey!");
@@ -143,7 +166,8 @@ class WheelOfFortune {
   removeCategory(index) {
     if (this.categories.length > 2) {
       this.categories.splice(index, 1);
-      this.drawWheel();
+      this.wheelGroup.clear();
+      this.createWheel();
       this.updateCategoriesList();
     } else {
       alert("Yarr! Ye need at least 2 categories to spin the wheel!");
