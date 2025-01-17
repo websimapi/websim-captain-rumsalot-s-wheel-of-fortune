@@ -1,0 +1,50 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Captain Rumsalot's Spinning Wheel of Fortune</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Captain Rumsalot's<br>Wheel of Fortune</h1>
+      <div class="pirate-decorations">
+        <svg class="eyepatch" viewBox="0 0 100 50">
+          <path d="M10,25 Q50,50 90,25" stroke="#000" stroke-width="8" fill="none"/>
+          <path d="M40,25 Q50,35 60,25" stroke="#000" stroke-width="12" fill="#222"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="wheel-container">
+      <svg class="wheel" viewBox="0 0 500 500">
+        <g class="wheel-sections"></g>
+        <circle cx="250" cy="250" r="10" fill="#873600"/>
+      </svg>
+      <div class="pointer">
+        <svg viewBox="0 0 50 100">
+          <path d="M25,0 L50,40 L25,30 L0,40 Z" fill="#873600"/>
+        </svg>
+      </div>
+    </div>
+
+    <button id="spinButton" class="spin-button">SPIN THE WHEEL</button>
+
+    <div class="controls">
+      <div class="input-group">
+        <input type="text" id="categoryInput" placeholder="Add new category">
+        <button id="addCategory">Add</button>
+      </div>
+      <div class="categories-list">
+        <h3>Current Categories:</h3>
+        <ul id="categoriesList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="wheel.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
