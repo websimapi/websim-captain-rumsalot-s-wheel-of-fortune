@@ -1,57 +1,52 @@
 import * as THREE from 'three';
-import { Water } from 'three/addons/objects/Water2.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { gsap } from 'gsap';
 
-class ShipScene {
+class ShipWheel {
   constructor() {
+    this.categories = ['Rum', 'More Rum', 'Even More Rum', 'Lots of Rum'];
+    this.isSpinning = false;
+    this.currentRotation = 0;
+    
+    // UI Elements
+    this.spinButton = document.getElementById('spinButton');
+    this.categoryInput = document.getElementById('categoryInput');
+    this.addCategoryButton = document.getElementById('addCategory');
+    this.categoriesList = document.getElementById('categoriesList');
+
+    // Scene Setup
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.clock = new THREE.Clock();
-    this.shipWheel = null;
-    this.ship = null;
-    this.water = null;
-    this.currentRotation = 0;
-    this.targetRotation = 0;
-    this.isAnimating = false;
+    this.renderer = new THREE.WebGLRenderer();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    document.getElementById('scene-container').appendChild(this.renderer.domElement);
 
-    this.init();
-    this.setupLights();
-    this.createWater();
-    this.createSky();
-    this.loadModels();
-    this.setupControls();
+    // Controls
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.maxPolarAngle = Math.PI * 0.495;
+    this.controls.minDistance = 5;
+    this.controls.maxDistance = 15;
+    
+    this.camera.position.set(0, 5, 10);
+    this.controls.update();
+
+    // Initialize
+    this.initializeScene();
+    this.initializeEvents();
+    this.createWheel();
+    this.updateCategoriesList();
     this.animate();
   }
 
-  init() {
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    document.body.appendChild(this.renderer.domElement);
-
-    this.camera.position.set(0, 10, 20);
-    this.camera.lookAt(0, 0, 0);
-
-    window.addEventListener('resize', () => this.onWindowResize(), false);
-  }
-
-  setupLights() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    this.scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(100, 100, 50);
-    this.scene.add(directionalLight);
-  }
-
-  createWater() {
+  initializeScene() {
+    // Water
     const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
     this.water = new Water(waterGeometry, {
       textureWidth: 512,
       textureHeight: 512,
-      waterNormals: new THREE.TextureLoader().load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/waternormals.jpg', function(texture) {
+      waterNormals: new THREE.TextureLoader().load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waternormals.jpg', function(texture) {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       }),
       sunDirection: new THREE.Vector3(),
@@ -62,92 +57,133 @@ class ShipScene {
     });
     this.water.rotation.x = -Math.PI / 2;
     this.scene.add(this.water);
-  }
 
-  createSky() {
-    const sky = new Sky();
-    sky.scale.setScalar(10000);
-    this.scene.add(sky);
+    // Sky
+    this.sky = new Sky();
+    this.sky.scale.setScalar(10000);
+    this.scene.add(this.sky);
+
+    const skyUniforms = this.sky.material.uniforms;
+    skyUniforms['turbidity'].value = 10;
+    skyUniforms['rayleigh'].value = 2;
+    skyUniforms['mieCoefficient'].value = 0.005;
+    skyUniforms['mieDirectionalG'].value = 0.8;
 
     const sun = new THREE.Vector3();
-    const uniforms = sky.material.uniforms;
-    uniforms['turbidity'].value = 10;
-    uniforms['rayleigh'].value = 2;
-    uniforms['mieCoefficient'].value = 0.005;
-    uniforms['mieDirectionalG'].value = 0.8;
-
+    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+    
     const phi = THREE.MathUtils.degToRad(90 - 2);
     const theta = THREE.MathUtils.degToRad(180);
     sun.setFromSphericalCoords(1, phi, theta);
-    uniforms['sunPosition'].value.copy(sun);
+
+    this.sky.material.uniforms['sunPosition'].value.copy(sun);
+    this.water.material.uniforms['sunDirection'].value.copy(sun).normalize();
+
+    this.scene.environment = pmremGenerator.fromScene(this.sky).texture;
   }
 
-  loadModels() {
-    const loader = new GLTFLoader();
-    
-    // Load ship wheel
-    loader.load('https://threejs.org/examples/models/gltf/ship/scene.gltf', (gltf) => {
-      this.ship = gltf.scene;
-      this.ship.scale.set(0.1, 0.1, 0.1);
-      this.scene.add(this.ship);
+  createWheel() {
+    // Create wheel geometry
+    const wheelGeometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
+    const wheelMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x5c3a21,
+      roughness: 0.7,
+      metalness: 0.3
     });
-
-    // Create a simple wheel geometry
-    const wheelGeometry = new THREE.TorusGeometry(2, 0.2, 16, 50);
-    const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-    this.shipWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    this.wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    this.wheel.rotation.x = Math.PI / 2;
+    this.wheel.position.y = 3;
     
-    // Add spokes to the wheel
-    for (let i = 0; i < 8; i++) {
+    // Add spokes
+    const spokesCount = 8;
+    for (let i = 0; i < spokesCount; i++) {
       const spoke = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 0.1, 1.8),
+        new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8),
         wheelMaterial
       );
-      spoke.rotation.z = (i * Math.PI) / 4;
-      this.shipWheel.add(spoke);
+      spoke.position.y = 0;
+      spoke.rotation.z = (i / spokesCount) * Math.PI * 2;
+      spoke.position.x = Math.cos(spoke.rotation.z) * 1;
+      spoke.position.z = Math.sin(spoke.rotation.z) * 1;
+      this.wheel.add(spoke);
     }
 
-    this.shipWheel.position.set(0, 5, 10);
-    this.scene.add(this.shipWheel);
+    this.scene.add(this.wheel);
   }
 
-  setupControls() {
-    document.getElementById('turnLeft').addEventListener('click', () => this.turn('left'));
-    document.getElementById('turnRight').addEventListener('click', () => this.turn('right'));
-  }
-
-  turn(direction) {
-    if (this.isAnimating) return;
-    
-    this.isAnimating = true;
-    const rotationAmount = direction === 'left' ? -Math.PI : Math.PI;
-    
-    // Animate the wheel
-    gsap.to(this.shipWheel.rotation, {
-      y: this.shipWheel.rotation.y + rotationAmount * 2,
-      duration: 2,
-      ease: "power2.inOut"
+  initializeEvents() {
+    this.spinButton.addEventListener('click', () => this.spin());
+    this.addCategoryButton.addEventListener('click', () => this.addCategory());
+    this.categoryInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.addCategory();
     });
+    window.addEventListener('resize', () => this.onWindowResize());
+  }
 
-    // Animate the ship
-    if (this.ship) {
-      gsap.to(this.ship.rotation, {
-        y: this.ship.rotation.y + rotationAmount / 2,
-        duration: 2,
-        ease: "power2.inOut",
-        onComplete: () => {
-          this.isAnimating = false;
-          this.updateCompass();
-        }
-      });
+  spin() {
+    if (this.isSpinning) return;
+    this.isSpinning = true;
+    this.spinButton.disabled = true;
+    
+    const spins = 5 + Math.random() * 5;
+    const targetRotation = this.currentRotation + (spins * Math.PI * 2);
+    
+    gsap.to(this.wheel.rotation, {
+      y: targetRotation,
+      duration: 5,
+      ease: "power2.out",
+      onComplete: () => {
+        this.isSpinning = false;
+        this.spinButton.disabled = false;
+        this.currentRotation = targetRotation;
+        this.announceWinner();
+      }
+    });
+  }
+
+  announceWinner() {
+    const rotation = (this.wheel.rotation.y % (Math.PI * 2)) / (Math.PI * 2);
+    const sectionAngle = 1 / this.categories.length;
+    const winningIndex = Math.floor(rotation / sectionAngle);
+    const winner = this.categories[winningIndex];
+    
+    alert(`Yarr! The wheel has chosen: ${winner}! 🏴‍☠️`);
+  }
+
+  addCategory() {
+    const category = this.categoryInput.value.trim();
+    if (category && this.categories.length < 12) {
+      this.categories.push(category);
+      this.categoryInput.value = '';
+      this.updateCategoriesList();
+    } else if (this.categories.length >= 12) {
+      alert("Yarr! The wheel can't hold more than 12 categories, matey!");
     }
   }
 
-  updateCompass() {
-    const directions = ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'];
-    const angle = (this.ship.rotation.y * (180 / Math.PI)) % 360;
-    const index = Math.round(((angle + 360) % 360) / 45) % 8;
-    document.getElementById('compass').textContent = `Current Heading: ${directions[index]}`;
+  removeCategory(index) {
+    if (this.categories.length > 2) {
+      this.categories.splice(index, 1);
+      this.updateCategoriesList();
+    } else {
+      alert("Yarr! Ye need at least 2 categories to spin the wheel!");
+    }
+  }
+
+  updateCategoriesList() {
+    this.categoriesList.innerHTML = '';
+    this.categories.forEach((category, index) => {
+      const li = document.createElement('li');
+      li.textContent = category;
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerHTML = '×';
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.addEventListener('click', () => this.removeCategory(index));
+      
+      li.appendChild(deleteBtn);
+      this.categoriesList.appendChild(li);
+    });
   }
 
   onWindowResize() {
@@ -158,13 +194,12 @@ class ShipScene {
 
   animate() {
     requestAnimationFrame(() => this.animate());
-
-    const delta = this.clock.getDelta();
-    this.water.material.uniforms['time'].value += delta;
-
+    this.water.material.uniforms['time'].value += 1.0 / 60.0;
     this.renderer.render(this.scene, this.camera);
   }
 }
 
-// Initialize the scene
-new ShipScene();
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+  new ShipWheel();
+});
