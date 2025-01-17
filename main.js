@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 class ShipWheel {
   constructor() {
@@ -258,39 +260,30 @@ class ShipWheel {
     const rim = new THREE.Mesh(rimGeometry, wheelMaterial);
     wheelGroup.add(rim);
 
-    // Add category labels
-    const labelGroup = new THREE.Group();
-    const radius = 0.9; // Slightly larger than wheel radius
+    // Add category markers instead of 3D text (more reliable)
     const categories = this.categories;
     const angleStep = (Math.PI * 2) / categories.length;
 
     categories.forEach((category, index) => {
-      // Create text geometry for each category
-      const loader = new THREE.FontLoader();
-      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
-        const textGeometry = new THREE.TextGeometry(category, {
-          font: font,
-          size: 0.1,
-          height: 0.02
-        });
-        
-        const textMaterial = new THREE.MeshStandardMaterial({ color: 0xffd700 }); // Gold color
-        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        
-        // Position text around wheel
-        const angle = index * angleStep;
-        textGeometry.computeBoundingBox();
-        const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
-        
-        textMesh.position.x = Math.cos(angle) * radius - textWidth / 2;
-        textMesh.position.y = Math.sin(angle) * radius;
-        textMesh.position.z = 0.1;
-        
-        // Rotate text to face outward
-        textMesh.rotation.z = angle + Math.PI / 2;
-        
-        labelGroup.add(textMesh);
+      // Create a marker plane for each category
+      const markerGeometry = new THREE.PlaneGeometry(0.4, 0.15);
+      const markerMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffd700,
+        side: THREE.DoubleSide
       });
+      const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+      
+      // Position markers around wheel
+      const angle = index * angleStep;
+      const radius = 0.9;
+      marker.position.x = Math.cos(angle) * radius;
+      marker.position.y = Math.sin(angle) * radius;
+      marker.position.z = 0.1;
+      
+      // Rotate marker to face outward
+      marker.rotation.z = angle + Math.PI / 2;
+      
+      wheelGroup.add(marker);
 
       // Add section separators
       const separator = new THREE.Mesh(
@@ -302,8 +295,6 @@ class ShipWheel {
       separator.rotation.z = index * angleStep;
       wheelGroup.add(separator);
     });
-
-    wheelGroup.add(labelGroup);
 
     // Center hub
     const hub = new THREE.Mesh(
