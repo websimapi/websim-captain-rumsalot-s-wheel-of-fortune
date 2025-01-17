@@ -258,6 +258,53 @@ class ShipWheel {
     const rim = new THREE.Mesh(rimGeometry, wheelMaterial);
     wheelGroup.add(rim);
 
+    // Add category labels
+    const labelGroup = new THREE.Group();
+    const radius = 0.9; // Slightly larger than wheel radius
+    const categories = this.categories;
+    const angleStep = (Math.PI * 2) / categories.length;
+
+    categories.forEach((category, index) => {
+      // Create text geometry for each category
+      const loader = new THREE.FontLoader();
+      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+        const textGeometry = new THREE.TextGeometry(category, {
+          font: font,
+          size: 0.1,
+          height: 0.02
+        });
+        
+        const textMaterial = new THREE.MeshStandardMaterial({ color: 0xffd700 }); // Gold color
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        
+        // Position text around wheel
+        const angle = index * angleStep;
+        textGeometry.computeBoundingBox();
+        const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+        
+        textMesh.position.x = Math.cos(angle) * radius - textWidth / 2;
+        textMesh.position.y = Math.sin(angle) * radius;
+        textMesh.position.z = 0.1;
+        
+        // Rotate text to face outward
+        textMesh.rotation.z = angle + Math.PI / 2;
+        
+        labelGroup.add(textMesh);
+      });
+
+      // Add section separators
+      const separator = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.02, 0.02),
+        new THREE.MeshStandardMaterial({ color: 0x3d2412 })
+      );
+      separator.position.x = 0;
+      separator.position.y = 0;
+      separator.rotation.z = index * angleStep;
+      wheelGroup.add(separator);
+    });
+
+    wheelGroup.add(labelGroup);
+
     // Center hub
     const hub = new THREE.Mesh(
       new THREE.CylinderGeometry(0.2, 0.2, 0.2, 16),
@@ -265,34 +312,63 @@ class ShipWheel {
     );
     wheelGroup.add(hub);
 
-    // Spokes
+    // Enhanced spokes with decorative elements
     const spokesCount = 8;
     for (let i = 0; i < spokesCount; i++) {
+      const spokeGroup = new THREE.Group();
+      
+      // Main spoke
       const spoke = new THREE.Mesh(
         new THREE.BoxGeometry(0.08, 0.08, 0.7),
         wheelMaterial
       );
-      const angle = (i / spokesCount) * Math.PI * 2;
-      spoke.position.x = Math.cos(angle) * 0.4;
-      spoke.position.y = Math.sin(angle) * 0.4;
-      spoke.rotation.x = angle;
-      wheelGroup.add(spoke);
+      spokeGroup.add(spoke);
 
-      // Add handle grips
+      // Decorative ring around spoke base
+      const ringGeometry = new THREE.TorusGeometry(0.06, 0.02, 8, 16);
+      const ring = new THREE.Mesh(ringGeometry, new THREE.MeshStandardMaterial({ color: 0x3d2412 }));
+      ring.position.z = 0.1;
+      spokeGroup.add(ring);
+
+      // Handle grip with improved shape
       const grip = new THREE.Mesh(
         new THREE.CapsuleGeometry(0.06, 0.15, 4, 8),
-        new THREE.MeshStandardMaterial({ color: 0x3d2412 })
+        new THREE.MeshStandardMaterial({ 
+          color: 0x3d2412,
+          roughness: 0.5,
+          metalness: 0.3
+        })
       );
-      grip.position.x = Math.cos(angle) * 0.8;
-      grip.position.y = Math.sin(angle) * 0.8;
-      grip.rotation.x = angle;
-      wheelGroup.add(grip);
+      grip.position.z = 0.35;
+      spokeGroup.add(grip);
+
+      // Position the spoke group
+      const angle = (i / spokesCount) * Math.PI * 2;
+      spokeGroup.position.x = Math.cos(angle) * 0.4;
+      spokeGroup.position.y = Math.sin(angle) * 0.4;
+      spokeGroup.rotation.x = angle;
+      wheelGroup.add(spokeGroup);
     }
+
+    // Add decorative center cap
+    const centerCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.25, 0.25, 0.05, 16),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x3d2412,
+        metalness: 0.5,
+        roughness: 0.2
+      })
+    );
+    centerCap.position.z = 0.1;
+    wheelGroup.add(centerCap);
 
     wheelGroup.rotation.z = Math.PI / 2;
     wheelGroup.position.set(-1, 4, 0);
     this.wheel = wheelGroup;
     this.boatGroup.add(wheelGroup);
+
+    // Lock rotation to correct axis
+    wheelGroup.userData.rotationAxis = new THREE.Vector3(0, 1, 0);
   }
 
   initializeScene() {
@@ -369,7 +445,13 @@ class ShipWheel {
       if (isDragging) {
         const deltaX = event.clientX - previousMouseX;
         const rotationSpeed = 0.01;
+        
+        // Apply rotation only around the Y axis
         this.wheel.rotation.y += deltaX * rotationSpeed;
+        
+        // Clamp wheel rotation to keep text readable
+        const maxRotation = Math.PI * 2;
+        this.wheel.rotation.y = this.wheel.rotation.y % maxRotation;
         
         // Update boat steering
         this.steeringAngle += deltaX * rotationSpeed;
@@ -406,9 +488,10 @@ class ShipWheel {
   }
 
   checkForWinner() {
-    const rotation = (this.wheel.rotation.y % (Math.PI * 2)) / (Math.PI * 2);
-    const sectionAngle = 1 / this.categories.length;
-    const winningIndex = Math.floor(rotation / sectionAngle);
+    const rotation = (this.wheel.rotation.y % (Math.PI * 2));
+    const normalizedRotation = rotation < 0 ? rotation + Math.PI * 2 : rotation;
+    const sectionAngle = (Math.PI * 2) / this.categories.length;
+    const winningIndex = Math.floor(normalizedRotation / sectionAngle);
     const winner = this.categories[winningIndex];
     
     this.tooltip.textContent = `Current selection: ${winner}`;
