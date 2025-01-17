@@ -12,6 +12,7 @@ class WheelOfFortune {
     this.initializeEvents();
     this.drawWheel();
     this.updateCategoriesList();
+    this.setupWheelAppearance();
   }
 
   initializeEvents() {
@@ -41,7 +42,7 @@ class WheelOfFortune {
   createWheelSection(cx, cy, r, startAngle, endAngle, fill, text) {
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     
-    // Create section path
+    // Create section path with wood-like appearance
     const startRad = (startAngle - 90) * Math.PI / 180;
     const endRad = (endAngle - 90) * Math.PI / 180;
     
@@ -53,10 +54,13 @@ class WheelOfFortune {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', `M${cx},${cy} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} Z`);
     path.setAttribute('fill', fill);
-    path.setAttribute('stroke', '#2C3E50');
-    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke', '#593d1b');
+    path.setAttribute('stroke-width', '3');
     
-    // Add text
+    // Add wood grain effect
+    path.setAttribute('filter', 'url(#wood-texture)');
+    
+    // Add text with improved styling
     const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     const middleAngle = (startAngle + endAngle) / 2;
     const textRadius = r * 0.7;
@@ -69,11 +73,23 @@ class WheelOfFortune {
     textElement.setAttribute('fill', 'white');
     textElement.setAttribute('transform', `rotate(${middleAngle},${textX},${textY})`);
     textElement.style.fontSize = '16px';
+    textElement.style.fontWeight = 'bold';
+    textElement.style.textShadow = '2px 2px 2px rgba(0,0,0,0.5)';
     textElement.textContent = text;
     
     group.appendChild(path);
     group.appendChild(textElement);
     return group;
+  }
+
+  setupWheelAppearance() {
+    this.wheel.style.transform = "rotateX(10deg)";
+    gsap.to(this.wheel, {
+      rotationY: 360,
+      duration: 30,
+      repeat: -1,
+      ease: "none"
+    });
   }
 
   spin() {
@@ -109,7 +125,7 @@ class WheelOfFortune {
     const winningIndex = Math.floor(((360 - rotation) % 360) / sectionAngle);
     const winner = this.categories[winningIndex];
     
-    alert(`Yarr! The wheel has chosen: ${winner}! 🏴‍☠️`);
+    alert(`Yarr! The wheel has chosen: ${winner}! `);
   }
 
   addCategory() {

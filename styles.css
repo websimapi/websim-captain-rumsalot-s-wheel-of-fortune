@@ -6,22 +6,82 @@
 
 body {
   font-family: 'Pirata One', cursive;
-  background: #2C3E50;
   color: #ECF0F1;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 20px;
-  background-image: 
-    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.5) 0%, transparent 60%),
-    repeating-linear-gradient(45deg, #2C3E50 0%, #34495E 10%);
+  perspective: 1000px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1a4b77 0%, #2C3E50 100%);
+}
+
+.ocean-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  transform-style: preserve-3d;
+  animation: oceanMovement 20s infinite linear;
+}
+
+.ocean {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  bottom: -70%;
+  left: -50%;
+  background: linear-gradient(0deg, #0a3d62 0%, #3498db 100%);
+  transform: rotateX(75deg);
+  animation: wave 8s infinite linear;
+}
+
+.wave {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.1) 0px,
+    rgba(255, 255, 255, 0.1) 20px,
+    transparent 20px,
+    transparent 40px
+  );
+  animation: waveMovement 10s infinite linear;
+}
+
+.sky {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60%;
+  background: linear-gradient(180deg, #1a4b77 0%, #2980b9 100%);
+  z-index: -2;
+}
+
+.stars {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(1px 1px at random(100) random(100), white 50%, transparent 50%);
+  opacity: 0.5;
+  z-index: -1;
 }
 
 .container {
   max-width: 800px;
   width: 100%;
   text-align: center;
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(5px);
 }
 
 .header {
@@ -41,6 +101,8 @@ h1 {
   width: 100%;
   max-width: 500px;
   margin: 0 auto 30px;
+  transform-style: preserve-3d;
+  transform: rotateX(10deg);
 }
 
 .wheel {
@@ -48,6 +110,19 @@ h1 {
   height: auto;
   transform-origin: center;
   transition: transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+}
+
+.wheel-frame {
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  border: 20px solid #593d1b;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .pointer {
@@ -171,4 +246,36 @@ button#addCategory:hover {
 
 .eyepatch {
   animation: sway 3s ease-in-out infinite;
+}
+
+@keyframes oceanMovement {
+  0% {
+    transform: translateZ(0) rotateX(0);
+  }
+  100% {
+    transform: translateZ(100px) rotateX(5deg);
+  }
+}
+
+@keyframes wave {
+  0% {
+    transform: rotateX(75deg) translateY(0);
+  }
+  100% {
+    transform: rotateX(75deg) translateY(-50%);
+  }
+}
+
+@keyframes waveMovement {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Add wooden texture to the wheel sections */
+.wheel-sections path {
+  filter: url(#wood-texture);
 }
